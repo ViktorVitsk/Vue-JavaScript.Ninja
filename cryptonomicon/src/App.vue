@@ -109,7 +109,7 @@
             </button>
           </div>
         </dl>
-        <hr class="w-full border-t border-gray-600 my-4" />
+        <hr class="w-full border-t border-gray-600 my-Б4" />
       </template>
       <section v-if="sel" class="relative">
         <h3 class="text-lg leading-6 font-medium text-gray-900 my-8">
@@ -166,6 +166,7 @@ export default {
       sel: null,
       API: "9024870eb6f799d75fa5f466cec540960bd288f9ffeb5234e857036ca494f583",
       graph: [],
+      coinList: {},
     };
   },
 
@@ -206,6 +207,18 @@ export default {
       this.sel = ticker;
       this.graph = [];
     },
+    async getCoinList() {
+      const res = await fetch(
+        "https://min-api.cryptocompare.com/data/all/coinlist?summary=true"
+      );
+      const data = await res.json();
+      this.coinList = data;
+    },
+  },
+  async created() {
+    await this.getCoinList();
+
+    console.log(this.coinList);
   },
 };
 </script>
