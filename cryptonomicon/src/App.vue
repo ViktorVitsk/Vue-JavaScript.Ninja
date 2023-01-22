@@ -11,6 +11,7 @@
               <input
                 v-model="ticker"
                 @keydown.enter="add"
+                @keyup="checkCoin"
                 type="text"
                 name="wallet"
                 id="wallet"
@@ -19,30 +20,21 @@
               />
             </div>
             <div
+              v-if="coinSearch.length"
               class="flex bg-white shadow-md p-1 rounded-md shadow-md flex-wrap"
             >
               <span
+                v-for="coin in coinSearch"
+                :key="coin"
+                @click="addCoin(coin)"
                 class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer"
               >
-                BTC
-              </span>
-              <span
-                class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer"
-              >
-                DOGE
-              </span>
-              <span
-                class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer"
-              >
-                BCH
-              </span>
-              <span
-                class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer"
-              >
-                CHD
+                {{ coin }}
               </span>
             </div>
-            <div class="text-sm text-red-600">Такой тикер уже добавлен</div>
+            <div v-if="coinContain" class="text-sm text-red-600">
+              Такой тикер уже добавлен
+            </div>
           </div>
         </div>
         <button
@@ -167,11 +159,18 @@ export default {
       API: "9024870eb6f799d75fa5f466cec540960bd288f9ffeb5234e857036ca494f583",
       graph: [],
       coinList: {},
+      coinSearch: [],
+      coinContain: false,
     };
   },
 
   methods: {
     add() {
+      for (const t of this.tickers) {
+        this.coinContain = this.ticker.toUpperCase() === t.name;
+        if (this.coinContain) return;
+      }
+
       const currentTicker = {
         name: this.ticker,
         price: "-",
@@ -190,6 +189,8 @@ export default {
         }
       }, 3000);
       this.ticker = "";
+      this.coinSearch = [];
+      this.coinContain = false;
     },
 
     handleDelete(tickerToRemove) {
@@ -207,18 +208,40 @@ export default {
       this.sel = ticker;
       this.graph = [];
     },
+
     async getCoinList() {
       const res = await fetch(
         "https://min-api.cryptocompare.com/data/all/coinlist?summary=true"
       );
       const data = await res.json();
-      this.coinList = data;
+      this.coinList = Object.keys(data.Data);
+    },
+
+    checkCoin() {
+      for (const t of this.tickers) {
+        this.coinContain = this.ticker.toUpperCase() === t.name;
+        if (this.coinContain) return;
+      }
+      const coins = Object.values(this.coinList);
+      const filter = coins.filter((coin) => {
+        const currentStr = this.ticker.toUpperCase();
+        const strLength = currentStr.length;
+        if (strLength > coin.length) return false;
+        const cutLettersOfCoin = coin.slice(0, strLength);
+        return cutLettersOfCoin === currentStr && strLength;
+      });
+      if (filter.length > 4) {
+        filter.length = 4;
+      }
+      this.coinSearch = filter;
+    },
+    addCoin(current) {
+      this.ticker = current;
+      this.add();
     },
   },
   async created() {
     await this.getCoinList();
-
-    console.log(this.coinList);
   },
 };
 </script>
