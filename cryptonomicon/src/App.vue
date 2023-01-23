@@ -35,6 +35,9 @@
             <div v-if="coinContain" class="text-sm text-red-600">
               Такой тикер уже добавлен
             </div>
+            <div v-if="coinHas" class="text-sm text-red-600">
+              Такой монеты не существует
+            </div>
           </div>
         </div>
         <button
@@ -158,9 +161,10 @@ export default {
       sel: null,
       API: "9024870eb6f799d75fa5f466cec540960bd288f9ffeb5234e857036ca494f583",
       graph: [],
-      coinList: {},
+      coinList: [],
       coinSearch: [],
       coinContain: false,
+      coinHas: false,
     };
   },
 
@@ -170,6 +174,11 @@ export default {
         this.coinContain = this.ticker.toUpperCase() === t.name;
         if (this.coinContain) return;
       }
+
+      if (!this.coinList.includes(this.ticker)) {
+        this.coinHas = true;
+        return;
+      } else this.coinHas = false;
 
       const currentTicker = {
         name: this.ticker,
@@ -232,6 +241,7 @@ export default {
     },
 
     checkCoin() {
+      this.coinHas = false;
       for (const t of this.tickers) {
         this.coinContain = this.ticker.toUpperCase() === t.name;
         if (this.coinContain) return;
