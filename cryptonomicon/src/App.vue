@@ -21,7 +21,7 @@
             </div>
             <div
               v-if="coinSearch.length"
-              class="flex bg-white shadow-md p-1 rounded-md shadow-md flex-wrap"
+              class="flex bg-white p-1 rounded-md shadow-md flex-wrap"
             >
               <span
                 v-for="coin in coinSearch"
@@ -45,7 +45,6 @@
           type="button"
           class="my-4 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
         >
-          <!-- Heroicon name: solid/mail -->
           <svg
             class="-ml-0.5 mr-2 h-6 w-6"
             xmlns="http://www.w3.org/2000/svg"
@@ -76,10 +75,9 @@
         ><button
           class="my-4 mx-2 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
           :class="{
-            'bg-gray-200 hover:bg-gray-300 focus:ring-gray-100':
-              page >= tickers.length / 6,
+            'bg-gray-200 hover:bg-gray-300 focus:ring-gray-100': !hasNextPage,
           }"
-          @click="page < tickers.length / 6 ? page++ : page"
+          @click="hasNextPage ? page++ : page"
         >
           Вперед
         </button>
@@ -188,6 +186,7 @@ export default {
       coinHas: false,
       page: 1,
       filter: "",
+      hasNextPage: true,
     };
   },
 
@@ -195,11 +194,13 @@ export default {
     filteredTickers() {
       const start = (this.page - 1) * 6;
       const end = this.page * 6;
-      return this.tickers
-        .filter((ticker) =>
-          ticker.name.toUpperCase().includes(this.filter.toUpperCase())
-        )
-        .slice(start, end);
+      const filteredTickers = this.tickers.filter((ticker) =>
+        ticker.name.toUpperCase().includes(this.filter.toUpperCase())
+      );
+
+      this.hasNextPage = filteredTickers.length > end;
+
+      return filteredTickers.slice(start, end);
     },
 
     add() {
@@ -299,6 +300,17 @@ export default {
     },
   },
   created() {
+    const windowData = Object.fromEntries(
+      new URL(window.location).searchParams.entries()
+    );
+
+    if (windowData.filter) {
+      this.filter = windowData.filter;
+    }
+    if (windowData.page) {
+      this.page = windowData.page;
+    }
+
     this.getCoinList();
 
     const tickersData = localStorage.getItem("cryptonomicon-list");
@@ -308,6 +320,24 @@ export default {
         this.subscribeToUpdates(ticker.name);
       });
     }
+  },
+  watch: {
+    filter() {
+      this.page = 1;
+
+      window.history.pushState(
+        null,
+        document.title,
+        `${window.location.pathname}?filter=${this.filter}&page=${this.page}`
+      );
+    },
+    page() {
+      window.history.pushState(
+        null,
+        document.title,
+        `${window.location.pathname}?filter=${this.filter}&page=${this.page}`
+      );
+    },
   },
 };
 </script>
