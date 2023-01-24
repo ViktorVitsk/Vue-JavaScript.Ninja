@@ -64,10 +64,31 @@
 
       <template v-if="tickers.length">
         <hr class="w-full border-t border-gray-600 my-4" />
+
+        <button
+          class="my-4 mx-2 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+          :class="{
+            'bg-gray-200 hover:bg-gray-300 focus:ring-gray-100': page <= 1,
+          }"
+          @click="page > 1 ? page-- : page"
+        >
+          Назад</button
+        ><button
+          class="my-4 mx-2 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+          :class="{
+            'bg-gray-200 hover:bg-gray-300 focus:ring-gray-100':
+              page >= tickers.length / 6,
+          }"
+          @click="page < tickers.length / 6 ? page++ : page"
+        >
+          Вперед
+        </button>
+        <div>Фильтр: <input v-model="filter" /></div>
+        <hr class="w-full border-t border-gray-600 my-4" />
         {{ sel }}
         <dl class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
           <div
-            v-for="t of tickers"
+            v-for="t in filteredTickers()"
             :key="t.name"
             @click="select(t)"
             :class="{
@@ -165,10 +186,22 @@ export default {
       coinSearch: [],
       coinContain: false,
       coinHas: false,
+      page: 1,
+      filter: "",
     };
   },
 
   methods: {
+    filteredTickers() {
+      const start = (this.page - 1) * 6;
+      const end = this.page * 6;
+      return this.tickers
+        .filter((ticker) =>
+          ticker.name.toUpperCase().includes(this.filter.toUpperCase())
+        )
+        .slice(start, end);
+    },
+
     add() {
       for (const t of this.tickers) {
         this.coinContain = this.ticker.toUpperCase() === t.name;
@@ -186,6 +219,7 @@ export default {
       };
 
       this.tickers.push(currentTicker);
+      this.filter = "";
 
       localStorage.setItem("cryptonomicon-list", JSON.stringify(this.tickers));
 
