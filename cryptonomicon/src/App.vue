@@ -5,33 +5,55 @@ export default {
   data() {
     return {
       ticker: "",
+      filter: "",
       tickers: [],
       sel: null,
       API: "9024870eb6f799d75fa5f466cec540960bd288f9ffeb5234e857036ca494f583",
       graph: [],
+      page: 1,
       coinList: [],
       coinSearch: [],
       coinContain: false,
       coinHas: false,
-      page: 1,
-      filter: "",
-      hasNextPage: true,
     };
   },
 
-  methods: {
-    filteredTickers() {
-      const start = (this.page - 1) * 6;
-      const end = this.page * 6;
-      const filteredTickers = this.tickers.filter((ticker) =>
-        ticker.name.toUpperCase().includes(this.filter.toUpperCase())
-      );
-
-      this.hasNextPage = filteredTickers.length > end;
-
-      return filteredTickers.slice(start, end);
+  computed: {
+    startIndex() {
+      return (this.page - 1) * 6;
+    },
+    endIndex() {
+      return this.page * 6;
     },
 
+    filteredTickers() {
+      return this.tickers.filter((ticker) =>
+        ticker.name.toUpperCase().includes(this.filter.toUpperCase())
+      );
+    },
+
+    paginatedTickers() {
+      return this.filteredTickers.slice(this.startIndex, this.endIndex);
+    },
+
+    hasNextPage() {
+      return this.filteredTickers.length > this.endIndex;
+    },
+
+    normalizedGraph() {
+      const maxValue = Math.max(...this.graph);
+      const minValue = Math.min(...this.graph);
+
+      if (maxValue === minValue) {
+        return this.graph.map(() => 50);
+      }
+      return this.graph.map(
+        (price) => 5 + ((price - minValue) * 95) / (maxValue - minValue)
+      );
+    },
+  },
+
+  methods: {
     add() {
       for (const t of this.tickers) {
         this.coinContain = this.ticker.toUpperCase() === t.name;
@@ -68,7 +90,7 @@ export default {
             this.tickers.find((t) => t.name === tickerName).price =
               data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(2);
         } catch (e) {
-          console.log("бля");
+          console.error("Обращение к удаленному тикеру");
         }
 
         if (this.sel?.name === tickerName) {
@@ -84,13 +106,6 @@ export default {
       localStorage.setItem("cryptonomicon-list", JSON.stringify(this.tickers));
     },
 
-    normalizeGraph() {
-      const maxValue = Math.max(...this.graph);
-      const minValue = Math.min(...this.graph);
-      return this.graph.map(
-        (price) => 5 + ((price - minValue) * 95) / (maxValue - minValue)
-      );
-    },
     select(ticker) {
       this.sel = ticker;
       this.graph = [];
@@ -128,6 +143,28 @@ export default {
       this.add();
     },
   },
+  watch: {
+    paginatedTickers() {
+      if (this.paginatedTickers.length === 0 && this.page > 1) {
+        this.page -= 1;
+      }
+    },
+
+    filter() {
+      window.history.pushState(
+        null,
+        document.title,
+        `${window.location.pathname}?filter=${this.filter}&page=${this.page}`
+      );
+    },
+    page() {
+      window.history.pushState(
+        null,
+        document.title,
+        `${window.location.pathname}?filter=${this.filter}&page=${this.page}`
+      );
+    },
+  },
   created() {
     const windowData = Object.fromEntries(
       new URL(window.location).searchParams.entries()
@@ -149,22 +186,6 @@ export default {
         this.subscribeToUpdates(ticker.name);
       });
     }
-  },
-  watch: {
-    filter() {
-      window.history.pushState(
-        null,
-        document.title,
-        `${window.location.pathname}?filter=${this.filter}&page=${this.page}`
-      );
-    },
-    page() {
-      window.history.pushState(
-        null,
-        document.title,
-        `${window.location.pathname}?filter=${this.filter}&page=${this.page}`
-      );
-    },
   },
 };
 </script>
@@ -254,10 +275,9 @@ export default {
         </button>
         <div>Фильтр: <input v-model="filter" @input="page = 1" /></div>
         <hr class="w-full border-t border-gray-600 my-4" />
-        {{ sel }}
         <dl class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
           <div
-            v-for="t in filteredTickers()"
+            v-for="t in paginatedTickers"
             :key="t.name"
             @click="select(t)"
             :class="{
@@ -302,7 +322,7 @@ export default {
         </h3>
         <div class="flex items-end border-gray-600 border-b border-l h-64">
           <div
-            v-for="(bar, idx) in normalizeGraph()"
+            v-for="(bar, idx) in normalizedGraph"
             :key="idx"
             :style="{ height: `${bar}%` }"
             class="bg-purple-800 border w-10"
