@@ -7,7 +7,7 @@ export default {
       ticker: "",
       filter: "",
       tickers: [],
-      sel: null,
+      selectedTicker: null,
       API: "9024870eb6f799d75fa5f466cec540960bd288f9ffeb5234e857036ca494f583",
       graph: [],
       page: 1,
@@ -19,6 +19,12 @@ export default {
   },
 
   computed: {
+    pageStateOptions() {
+      return {
+        filter: this.filter,
+        page: this.page,
+      };
+    },
     startIndex() {
       return (this.page - 1) * 6;
     },
@@ -70,7 +76,7 @@ export default {
         price: "-",
       };
 
-      this.tickers.push(currentTicker);
+      this.tickers = [...this.tickers, currentTicker];
       this.filter = "";
 
       localStorage.setItem("cryptonomicon-list", JSON.stringify(this.tickers));
@@ -93,7 +99,7 @@ export default {
           console.error("Обращение к удаленному тикеру");
         }
 
-        if (this.sel?.name === tickerName) {
+        if (this.selectedTicker?.name === tickerName) {
           this.graph.push(data.USD);
         }
       }, 3000);
@@ -103,12 +109,14 @@ export default {
     },
     handleDelete(tickerToRemove) {
       this.tickers = this.tickers.filter((t) => t !== tickerToRemove);
-      localStorage.setItem("cryptonomicon-list", JSON.stringify(this.tickers));
+
+      if (this.selectedTicker === tickerToRemove) {
+        this.selectedTicker = null;
+      }
     },
 
     select(ticker) {
-      this.sel = ticker;
-      this.graph = [];
+      this.selectedTicker = ticker;
     },
 
     async getCoinList() {
@@ -144,38 +152,48 @@ export default {
     },
   },
   watch: {
+    selectedTicker() {
+      this.graph = [];
+    },
+
     paginatedTickers() {
       if (this.paginatedTickers.length === 0 && this.page > 1) {
         this.page -= 1;
       }
     },
 
-    filter() {
-      window.history.pushState(
-        null,
-        document.title,
-        `${window.location.pathname}?filter=${this.filter}&page=${this.page}`
-      );
+    tickers() {
+      localStorage.setItem("cryptonomicon-list", JSON.stringify(this.tickers));
     },
-    page() {
+
+    pageStateOptions(value) {
       window.history.pushState(
         null,
         document.title,
-        `${window.location.pathname}?filter=${this.filter}&page=${this.page}`
+        `${window.location.pathname}?filter=${value.filter}&page=${value.page}`
       );
     },
   },
+
   created() {
     const windowData = Object.fromEntries(
       new URL(window.location).searchParams.entries()
     );
 
-    if (windowData.filter) {
-      this.filter = windowData.filter;
-    }
-    if (windowData.page) {
-      this.page = windowData.page;
-    }
+    const VALID_KEYS = ["filter", "page"];
+
+    VALID_KEYS.forEach((key) => {
+      if (windowData[key]) {
+        this[key] = windowData[key];
+      }
+    });
+
+    // if (windowData.filter) {
+    //   this.filter = windowData.filter;
+    // }
+    // if (windowData.page) {
+    //   this.page = windowData.page;
+    // }
 
     this.getCoinList();
 
@@ -281,7 +299,7 @@ export default {
             :key="t.name"
             @click="select(t)"
             :class="{
-              'border-4': sel === t,
+              'border-4': selectedTicker === t,
             }"
             class="bg-white overflow-hidden shadow rounded-lg border-purple-800 border-solid cursor-pointer"
           >
@@ -316,9 +334,9 @@ export default {
         </dl>
         <hr class="w-full border-t border-gray-600 my-Б4" />
       </template>
-      <section v-if="sel" class="relative">
+      <section v-if="selectedTicker" class="relative">
         <h3 class="text-lg leading-6 font-medium text-gray-900 my-8">
-          {{ sel.name }} - USD
+          {{ selectedTicker.name }} - USD
         </h3>
         <div class="flex items-end border-gray-600 border-b border-l h-64">
           <div
@@ -329,7 +347,7 @@ export default {
           ></div>
         </div>
         <button
-          @click="sel = null"
+          @click="selectedTicker = null"
           type="button"
           class="absolute top-0 right-0"
         >
