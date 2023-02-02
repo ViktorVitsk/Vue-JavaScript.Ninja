@@ -1,5 +1,5 @@
 <script>
-import { loadCoins, loadTickers } from "./api";
+import { loadCoins, subscribeToTicker, unsubscribeFromTicker } from "./api";
 export default {
   name: "App",
 
@@ -60,16 +60,27 @@ export default {
   },
 
   methods: {
-    add() {
+    updateTicker(tickerName, price) {
+      this.tickers
+        .filter(t => t.name === tickerName)
+        .forEach(t => {
+          t.price = price;
+        });
+    },
+
+    checkCoinHas() {
       for (const t of this.tickers) {
         this.coinContain = this.ticker.toUpperCase() === t.name;
-        if (this.coinContain) return;
+        if (this.coinContain) return true;
       }
 
       if (!this.coinList.includes(this.ticker)) {
         this.coinHas = true;
-        return;
+        return true;
       } else this.coinHas = false;
+    },
+    add() {
+      if (this.checkCoinHas()) return;
 
       const currentTicker = {
         name: this.ticker,
@@ -77,41 +88,47 @@ export default {
       };
 
       this.tickers = [...this.tickers, currentTicker];
+      this.ticker = "";
       this.filter = "";
 
-      localStorage.setItem("cryptonomicon-list", JSON.stringify(this.tickers));
+      subscribeToTicker(currentTicker.name, newPrice =>
+        this.updateTicker(currentTicker.name, newPrice)
+      );
 
-      this.subscribeToUpdates(currentTicker.name);
+      this.resetForValidation();
     },
 
-    subscribeToUpdates(tickerName) {
-      setInterval(async () => {
-        const exchangeData = await loadTickers(tickerName);
+    formatPrice(price) {
+      if (typeof price !== "number") {
+        return price;
+      }
+      return price > 1 ? price.toFixed(2) : price.toPrecision(2);
+    },
 
-        try {
-          if (typeof exchangeData.USD === "number")
-            this.tickers.find(t => t.name === tickerName).price =
-              exchangeData.USD > 1
-                ? exchangeData.USD.toFixed(2)
-                : exchangeData.USD.toPrecision(2);
-        } catch (e) {
-          console.error("Обращение к удаленному тикеру");
-        }
+    async updateTickers() {
+      // if (!this.tickers.length) {
+      //   return;
+      // }
+      // const exchangeData = await loadTickers(this.tickers.map(t => t.name));
+      // this.tickers.forEach(ticker => {
+      //   const price = exchangeData[ticker.name.toUpperCase()];
+      //   ticker.price = price ?? "-";
+      // });
+    },
 
-        if (this.selectedTicker?.name === tickerName) {
-          this.graph.push(exchangeData.USD);
-        }
-      }, 3000);
+    resetForValidation() {
       this.ticker = "";
       this.coinSearch = [];
       this.coinContain = false;
     },
+
     handleDelete(tickerToRemove) {
       this.tickers = this.tickers.filter(t => t !== tickerToRemove);
 
       if (this.selectedTicker === tickerToRemove) {
         this.selectedTicker = null;
       }
+      unsubscribeFromTicker(tickerToRemove.name);
     },
 
     select(ticker) {
@@ -137,9 +154,11 @@ export default {
         const cutLettersOfCoin = coin.slice(0, strLength);
         return cutLettersOfCoin === currentStr && strLength;
       });
+
       if (filter.length > 4) {
         filter.length = 4;
       }
+
       this.coinSearch = filter;
     },
 
@@ -195,12 +214,17 @@ export default {
     this.getCoinList();
 
     const tickersData = localStorage.getItem("cryptonomicon-list");
+
     if (tickersData) {
       this.tickers = JSON.parse(tickersData);
       this.tickers.forEach(ticker => {
-        this.subscribeToUpdates(ticker.name);
+        subscribeToTicker(ticker.name, newPrice =>
+          this.updateTicker(ticker.name, newPrice)
+        );
       });
     }
+
+    setInterval(this.updateTickers, 5000);
   },
 };
 </script>
@@ -305,7 +329,7 @@ export default {
                 {{ t.name }} - USD
               </dt>
               <dd class="mt-1 text-3xl font-semibold text-gray-900">
-                {{ t.price }}
+                {{ formatPrice(t.price) }}
               </dd>
             </div>
             <div class="w-full border-t border-gray-200"></div>
