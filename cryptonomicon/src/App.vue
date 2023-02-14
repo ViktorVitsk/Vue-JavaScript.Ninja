@@ -14,7 +14,7 @@
 // [x] График сломан если везде одинаковые значения
 // [x] При удалении тикера остается выбор
 
-import { subscribeToTicker, unsubscribeFromTicker } from "./api";
+import { getCoinList, subscribeToTicker, unsubscribeFromTicker } from "./api";
 
 export default {
   name: "App",
@@ -30,10 +30,14 @@ export default {
       graph: [],
 
       page: 1,
+
+      coinNamesList: [],
     };
   },
 
   created() {
+    this.createCoinListNames();
+
     const windowData = Object.fromEntries(
       new URL(window.location).searchParams.entries()
     );
@@ -45,14 +49,6 @@ export default {
         this[key] = windowData[key];
       }
     });
-
-    // if (windowData.filter) {
-    //   this.filter = windowData.filter;
-    // }
-
-    // if (windowData.page) {
-    //   this.page = windowData.page;
-    // }
 
     const tickersData = localStorage.getItem("cryptonomicon-list");
 
@@ -155,6 +151,22 @@ export default {
       }
       unsubscribeFromTicker(tickerToRemove.name);
     },
+
+    async getCoinListNames() {
+      const coinList = await getCoinList();
+      return coinList;
+    },
+
+    async createCoinListNames() {
+      if (localStorage.getItem("coinNames-list")) {
+        console.log("has");
+        this.coinNamesList = localStorage.getItem("coinNames-list");
+      } else {
+        console.log("not has");
+        this.coinNamesList = await this.getCoinListNames();
+        localStorage.setItem("coinNames-list", this.coinNamesList);
+      }
+    },
   },
 
   watch: {
@@ -162,9 +174,7 @@ export default {
       this.graph = [];
     },
 
-    tickers(newValue, oldValue) {
-      // Почему не сработал watch при добавлении?
-      console.log(newValue === oldValue);
+    tickers() {
       localStorage.setItem("cryptonomicon-list", JSON.stringify(this.tickers));
     },
 
